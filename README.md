@@ -198,6 +198,6 @@ It should be considered a **prototype / R&D system**, not a replacement for a ce
 
 ## Author
 
-**Luigi Santagata**
+**Luigi Santagada**
 
 Embedded systems, microcontrollers, battery monitoring and neural networks for resource-constrained devices.
