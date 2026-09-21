@@ -35,7 +35,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "orcad-schematics", "orcad-s
 		orcad tests\zener_best_practices.opj = orcad tests\zener_best_practices.opj
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Neural_Network_Battery_Analyzer", "..\..\LSG-Microcontroller-AI\72Volts-Battery-Health-Check\Neural_Network_Battery_Analyzer\Lifepo4-Discharge-Model.vcxproj", "{FD06033E-A964-463D-A065-B08746662F03}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "72V-Battery-AI-Model-Trainer", "..\..\LSG-Microcontroller-AI\72V-Battery-AI-Model-Trainer\72V-Battery-AI-Model-Trainer\72V-Battery-AI-Model-Trainer.vcxproj", "{FD06033E-A964-463D-A065-B08746662F03}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
