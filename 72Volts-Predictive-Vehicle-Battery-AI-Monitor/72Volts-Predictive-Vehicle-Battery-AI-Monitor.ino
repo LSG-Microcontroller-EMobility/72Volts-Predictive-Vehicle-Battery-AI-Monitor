@@ -489,22 +489,85 @@ void read_power_measurements_from_serial() {
 	stored_watts = 0.00f;
 	SoftwareSerial softwareSerial(_pin_rx, 99);
 	softwareSerial.begin(600);
-	while (!softwareSerial);
-	delay(800);
-	char t;
-	if (softwareSerial.available() > 0) {
-		while (true) {
-			softwareSerial.readBytes(&t, 1);
-			if (t == '*') {
-				break;
-			}
+	// Frame del Watt-Meter: '*' + ampere + byte NUL + Wh accumulati.
+	// Il successivo '*' chiude il messaggio; i numeri hanno due decimali.
+	char received_text[32] = {};
+	const uint8_t separator_not_found = sizeof(received_text);
+	const unsigned long reception_timeout_ms = 2000UL;
+	const unsigned long reception_start_ms = millis();
+	uint8_t received_text_length = 0;
+	uint8_t separator_position = separator_not_found;
+	bool has_frame_start = false;
+	bool is_frame_invalid = false;
+	while ((millis() - reception_start_ms) < reception_timeout_ms) {
+		if (softwareSerial.overflow()) {
+			// Il buffer seriale ha perso byte: svuotalo e attendi un nuovo '*'.
+			const int buffered_byte_count = softwareSerial.available();
+			for (int byte_index = 0; byte_index < buffered_byte_count; byte_index++) softwareSerial.read();
+			has_frame_start = false;
+			received_text_length = 0;
+			separator_position = separator_not_found;
+			is_frame_invalid = false;
 		}
-	}
-	if (softwareSerial.available() > 0) {
-		stored_ampere = softwareSerial.parseFloat();
-	}
-	if (softwareSerial.available() > 0) {
-		stored_watts = softwareSerial.parseFloat();
+		const int received_byte = softwareSerial.read();
+		if (received_byte < 0) continue;
+		// '*' chiude il messaggio precedente e apre il successivo.
+		if (received_byte == '*') {
+			if (has_frame_start && !is_frame_invalid &&
+				separator_position > 0 && separator_position < received_text_length - 1) {
+				received_text[received_text_length] = '\0';
+				bool are_numbers_valid = true;
+				for (uint8_t measurement_index = 0; measurement_index < 2; measurement_index++) {
+					const char* number_text = received_text + (measurement_index == 0 ? 0 : separator_position + 1);
+					bool has_integer_digit = false;
+					bool has_decimal_point = false;
+					uint8_t decimal_digit_count = 0;
+					for (const char* number_character = number_text; *number_character != '\0'; number_character++) {
+						if (*number_character >= '0' && *number_character <= '9') {
+							if (has_decimal_point) decimal_digit_count++;
+							else has_integer_digit = true;
+						}
+						else if (*number_character == '.' && has_integer_digit && !has_decimal_point) {
+							has_decimal_point = true;
+						}
+						else {
+							are_numbers_valid = false;
+							break;
+						}
+					}
+					if (!has_integer_digit || !has_decimal_point || decimal_digit_count != 2) {
+						are_numbers_valid = false;
+					}
+				}
+				if (are_numbers_valid) {
+					char* ampere_text_end;
+					char* watt_hours_text_end;
+					const float received_ampere = (float)strtod(received_text, &ampere_text_end);
+					const float received_watt_hours = (float)strtod(received_text + separator_position + 1, &watt_hours_text_end);
+					if (ampere_text_end == received_text + separator_position && watt_hours_text_end == received_text + received_text_length) {
+						stored_ampere = received_ampere;
+						// Il nome storico stored_watts contiene energia in Wh.
+						stored_watts = received_watt_hours;
+						break;
+					}
+				}
+			}
+			has_frame_start = true;
+			is_frame_invalid = false;
+			received_text_length = 0;
+			separator_position = separator_not_found;
+			continue;
+		}
+		if (!has_frame_start) continue;
+		if (received_text_length >= sizeof(received_text) - 1) {
+			is_frame_invalid = true;
+			continue;
+		}
+		if (received_byte == '\0') {
+			if (separator_position != separator_not_found) is_frame_invalid = true;
+			else separator_position = received_text_length;
+		}
+		received_text[received_text_length++] = (char)received_byte;
 	}
 #if _DEBUG_FOR_SERIAL
 	Serial.print(F("Ampere :")); Serial.println(stored_ampere);
