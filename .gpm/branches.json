@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "permanentBranches": ["master", "develop"],
+  "branchFamilies": [
+    { "prefix": "feature/", "baseBranch": "develop" },
+    { "prefix": "fix/",     "baseBranch": "develop" },
+    { "prefix": "bugfix/",  "baseBranch": "develop" },
+    { "prefix": "task/",    "baseBranch": "develop" },
+    { "prefix": "release/", "baseBranch": "develop" },
+    { "prefix": "hotfix/",  "baseBranch": "master" }
+  ]
+}
