@@ -66,7 +66,7 @@ jobs:
               url = source["url"]
               if not re.fullmatch(r"[0-9a-fA-F]{40}", ref):
                   raise SystemExit(f"Library {url} must be pinned to a 40-character commit SHA")
-              rows.append(f"| \`{url}\` | \`{ref}\` |")
+              rows.append(f"| `{url}` | `{ref}` |")
               print(f"Git library: {url} @ {ref}")
               print(f"::notice title=AVR library revision::{url} @ {ref}")
           for library in manifest.get("arduinoLibraryManager", []):
@@ -74,10 +74,10 @@ jobs:
               version = library.get("version", "")
               if not version:
                   raise SystemExit(f"Arduino Library Manager dependency {name} has no pinned version")
-              rows.append(f"| \`{name}\` | \`{version}\` |")
+              rows.append(f"| `{name}` | `{version}` |")
               print(f"Arduino library: {name} @ {version}")
           for source in manifest.get("projectLibraryPaths", []):
-              rows.append(f"| \`{source['path']}\` | Inclusa nel commit del firmware |")
+              rows.append(f"| `{source['path']}` | Inclusa nel commit del firmware |")
           if len(rows) == 4:
               rows.append("| Nessuna libreria esterna | — |")
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
