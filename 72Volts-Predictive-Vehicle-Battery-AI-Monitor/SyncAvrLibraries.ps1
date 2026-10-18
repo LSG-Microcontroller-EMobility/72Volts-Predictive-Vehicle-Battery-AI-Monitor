@@ -1,7 +1,8 @@
-param(
-    [Parameter(Mandatory = $true)][string]$SketchPath,
-    [Parameter(Mandatory = $true)][string]$GeneratedHeader
-)
+# This script is installed beside GenerateGitVersion.bat. Avoid command-line
+# arguments: Visual Micro's prebuild command processing may drop a trailing
+# parameter. Resolve both paths from the script's actual directory instead.
+$SketchPath = $PSScriptRoot
+$GeneratedHeader = Join-Path $SketchPath 'GitVersion.generated.tmp'
 $ErrorActionPreference = 'Stop'
 
 function Invoke-Git([string]$Location, [string[]]$Arguments) {

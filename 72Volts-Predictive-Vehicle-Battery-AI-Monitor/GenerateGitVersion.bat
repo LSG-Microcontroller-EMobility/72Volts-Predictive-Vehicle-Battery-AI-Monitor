@@ -43,7 +43,7 @@ echo Git version: XXXXXXX
 :finish
 REM Synchronize local Git library revisions before completing this firmware build.
 REM The shared .gpm/avr-libraries.json travels with commits through PRs and releases.
-powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%SKETCH%SyncAvrLibraries.ps1" -SketchPath "%SKETCH%" -GeneratedHeader "%TMP%"
+powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%SKETCH%SyncAvrLibraries.ps1"
 if errorlevel 1 goto fail
 move /y "%TMP%" "%OUT%" >nul
 if errorlevel 1 goto fail
