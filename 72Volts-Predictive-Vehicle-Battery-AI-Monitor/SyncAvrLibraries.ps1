@@ -90,9 +90,23 @@ try {
         if ([string]::IsNullOrWhiteSpace($lib.version)) { throw "Unpinned Arduino Library Manager version: $($lib.name)" }
         $versions += "$($lib.name)@$($lib.version)"
     }
-    $versionText = ($versions -join ';').Replace('\', '\\').Replace('"', '\"')
-    $headerLine = "#define GIT_LIBRARIES_VERSION `"$versionText`"`n"
+    # Same seven-character interface as GIT_VERSION, including on development branches.
+    # One Git repository: its abbreviated commit. Multiple dependencies: a
+    # deterministic seven-character fingerprint of all pinned references.
+    $shortVersion = 'XXXXXXX'
+    if ($versions.Count -eq 1 -and $repositories.Count -eq 1) {
+        $shortVersion = ([string]$repositories[0].ref).Substring(0, 7).ToLowerInvariant()
+    }
+    elseif ($versions.Count -gt 0) {
+        $data = [System.Text.Encoding]::UTF8.GetBytes(($versions -join ';'))
+        $sha256 = [System.Security.Cryptography.SHA256]::Create()
+        try { $digest = $sha256.ComputeHash($data) }
+        finally { $sha256.Dispose() }
+        $shortVersion = [System.BitConverter]::ToString($digest).Replace('-', '').Substring(0, 7).ToLowerInvariant()
+    }
+    $headerLine = "#define GIT_LIBRARIES_VERSION `"$shortVersion`"`n"
     [System.IO.File]::AppendAllText($GeneratedHeader, $headerLine, (New-Object System.Text.UTF8Encoding($false)))
+    Write-Host "GIT_LIBRARIES_VERSION: $shortVersion"
     Write-Host "AVR library revision(s): $($versions -join '; ')"
     exit 0
 }

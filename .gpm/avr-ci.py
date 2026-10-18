@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Build Arduino firmware using portable project library dependencies."""
 import json
+import hashlib
 import os
 import re
 import pathlib
@@ -45,6 +46,7 @@ def main():
     # The manifest is committed alongside the firmware: this is the exact
     # dependency revision transported through feature/develop/release PRs.
     versions = []
+    git_refs = []
     summary_lines = ["### AVR firmware dependency versions", "",
                      "| Source | Pinned version |", "| --- | --- |"]
     for source in data.get("gitRepositories", []):
@@ -52,6 +54,7 @@ def main():
         if not re.fullmatch(r"[0-9a-fA-F]{40}", ref):
             raise ValueError("Git library must be pinned to a full commit SHA: " + url)
         versions.append(url + "@" + ref)
+        git_refs.append(ref)
         summary_lines.append("| `" + url + "` | `" + ref + "` |")
         print("CI Git library:", url, "@", ref, flush=True)
     for library in data.get("arduinoLibraryManager", []):
@@ -69,9 +72,17 @@ def main():
     header = pathlib.Path(sys.argv[2]) / "GitVersion.generated.h"
     if not header.is_file():
         raise ValueError("Missing generated firmware version header: " + str(header))
-    # JSON string escaping is compatible with a C/C++ string literal.
+    # One Git library uses its abbreviated commit, just like GIT_VERSION.
+    # For multiple pinned dependencies, use a stable 7-character fingerprint.
+    if not versions:
+        short_version = "XXXXXXX"
+    elif len(versions) == 1 and len(git_refs) == 1:
+        short_version = git_refs[0][:7].lower()
+    else:
+        short_version = hashlib.sha256(";".join(versions).encode("utf-8")).hexdigest()[:7]
     with header.open("a", encoding="utf-8") as output:
-        output.write("#define GIT_LIBRARIES_VERSION " + json.dumps(";".join(versions)) + "\n")
+        output.write("#define GIT_LIBRARIES_VERSION " + json.dumps(short_version) + "\n")
+    print("CI GIT_LIBRARIES_VERSION:", short_version, flush=True)
 
     build_args = ["arduino-cli", "compile", "--fqbn", sys.argv[1]]
     with tempfile.TemporaryDirectory(prefix="gpm-avr-libraries-") as tmp:
