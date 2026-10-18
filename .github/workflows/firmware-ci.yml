@@ -3,7 +3,7 @@ on:
   push:
     branches: [develop, 'release/**']
   pull_request:
-    branches: [develop, master]
+    branches: [develop, master, 'release/**']
   workflow_dispatch:
 permissions:
   contents: read
@@ -49,6 +49,40 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: arduino/setup-arduino-cli@v2
+      - name: Report pinned AVR library revisions
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import re
+
+          manifest = json.loads(Path(".gpm/avr-libraries.json").read_text(encoding="utf-8"))
+          rows = ["### Versioni librerie usate dalla compilazione AVR", "",
+                  "| Libreria | Versione |", "| --- | --- |"]
+          for source in manifest.get("gitRepositories", []):
+              ref = source.get("ref", "")
+              url = source["url"]
+              if not re.fullmatch(r"[0-9a-fA-F]{40}", ref):
+                  raise SystemExit(f"Library {url} must be pinned to a 40-character commit SHA")
+              rows.append(f"| \`{url}\` | \`{ref}\` |")
+              print(f"Git library: {url} @ {ref}")
+              print(f"::notice title=AVR library revision::{url} @ {ref}")
+          for library in manifest.get("arduinoLibraryManager", []):
+              name = library["name"]
+              version = library.get("version", "")
+              if not version:
+                  raise SystemExit(f"Arduino Library Manager dependency {name} has no pinned version")
+              rows.append(f"| \`{name}\` | \`{version}\` |")
+              print(f"Arduino library: {name} @ {version}")
+          for source in manifest.get("projectLibraryPaths", []):
+              rows.append(f"| \`{source['path']}\` | Inclusa nel commit del firmware |")
+          if len(rows) == 4:
+              rows.append("| Nessuna libreria esterna | — |")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write("\n".join(rows) + "\n")
+          PY
       - name: Install board core
         shell: bash
         run: |
