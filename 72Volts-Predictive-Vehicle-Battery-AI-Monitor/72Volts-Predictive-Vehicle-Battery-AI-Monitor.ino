@@ -300,6 +300,11 @@ void loop() {
 	}
 	store_current_battery_voltage(response);
 	append_line_to_sd_card(csv_battery_text_layout);
+	// Una lettura 0.00 e' valida e viene salvata, ma mantiene il messaggio audio di errore.
+	// Non interrompere il ciclo: prosegui comunque con la batteria successiva.
+	if (storedBatteryValues[_demultiplexerPosition] == 0.0f) {
+		play_audio_message(AUDIO_NUMERO_ERRATO);
+	}
 	if (_demultiplexerPosition == (_numberOfBattery - 1)) {
 #if _DEBUG_FOR_SERIAL
 		print_stored_battery_voltages();
