@@ -13,7 +13,7 @@
 #include <stdbool.h>  // bool
 #include <stddef.h>   // NULL
 #ifndef _DEBUG_FOR_SERIAL
-#define _DEBUG_FOR_SERIAL 1
+#define _DEBUG_FOR_SERIAL 0
 #endif
 #ifndef _IS_ON_VOLTAGE_TEST
 #define _IS_ON_VOLTAGE_TEST 0
