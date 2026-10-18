@@ -41,6 +41,10 @@ goto finish
 >> "%TMP%" echo #define GIT_VERSION "XXXXXXX"
 echo Git version: XXXXXXX
 :finish
+REM Synchronize local Git library revisions before completing this firmware build.
+REM The shared .gpm/avr-libraries.json travels with commits through PRs and releases.
+powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%SKETCH%SyncAvrLibraries.ps1" -SketchPath "%SKETCH%" -GeneratedHeader "%TMP%"
+if errorlevel 1 goto fail
 move /y "%TMP%" "%OUT%" >nul
 if errorlevel 1 goto fail
 del "%GITTMP%" >nul 2>&1
