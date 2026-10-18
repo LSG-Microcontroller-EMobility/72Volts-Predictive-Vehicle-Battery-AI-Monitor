@@ -12,8 +12,9 @@
 #include <stdlib.h>   // strtof
 #include <stdbool.h>  // bool
 #include <stddef.h>   // NULL
+#include <stdint.h>   // UINT16_MAX
 #ifndef _DEBUG_FOR_SERIAL
-#define _DEBUG_FOR_SERIAL 1
+#define _DEBUG_FOR_SERIAL 0
 #endif
 #ifndef _IS_ON_VOLTAGE_TEST
 #define _IS_ON_VOLTAGE_TEST 0
@@ -128,10 +129,14 @@ float calculate_arithmetic_mean(const float* data, int size) {
 	return sum / size;
 }
 uint16_t calculate_normalized_rmse_percentage(float mse, float reference_mean) {
+	// Con una media nulla la percentuale non e' definita: non considerare valida la previsione.
+	if (reference_mean <= 0.0f) return UINT16_MAX;
 	// Calcola il Root Mean Squared Error (RMSE)
 	float rms = sqrtf(mse);
 	// Calcola la percentuale (tronca i decimali):
 	float pct = (rms / reference_mean) * 100.0f;
+	// Evita conversioni fuori intervallo (anche in caso di NaN/infinito).
+	if (!(pct >= 0.0f && pct < 65535.0f)) return UINT16_MAX;
 	return (uint16_t)pct;
 }
 void setup() {
@@ -295,6 +300,11 @@ void loop() {
 	}
 	store_current_battery_voltage(response);
 	append_line_to_sd_card(csv_battery_text_layout);
+	// Una lettura 0.00 e' valida e viene salvata, ma mantiene il messaggio audio di errore.
+	// Non interrompere il ciclo: prosegui comunque con la batteria successiva.
+	if (storedBatteryValues[_demultiplexerPosition] == 0.0f) {
+		play_audio_message(AUDIO_NUMERO_ERRATO);
+	}
 	if (_demultiplexerPosition == (_numberOfBattery - 1)) {
 #if _DEBUG_FOR_SERIAL
 		print_stored_battery_voltages();
@@ -419,8 +429,8 @@ bool is_valid_battery_voltage_response(const char* s) {
 	if (end == s || *end != '\0')
 		return false;
 
-	// 6) intervallo aperto (0.00, 4.50)
-	if (!(val > 0.0f && val < 4.5f))
+	// 6) accetta anche 0.00, ma continua a rifiutare valori >= 4.50
+	if (!(val >= 0.0f && val < 4.5f))
 		return false;
 
 	return true;
@@ -435,6 +445,8 @@ bool are_batteries_unbalanced() {
 	}
 	x = x / _numberOfBattery;
 	float maxPercentageForAlarm = -(8.60f * x) + 32.15f;
+	// Se tutte le letture sono 0.00, il rapporto min/max non e' definito.
+	if (batteryMaxLevel <= 0.0f) return false;
 	float percentageValue = 100 - ((batteryMinLevel / batteryMaxLevel) * 100);
 #if _DEBUG_FOR_SERIAL
 	Serial.print(F("% value : ")); Serial.print(percentageValue); Serial.println(F("%"));
