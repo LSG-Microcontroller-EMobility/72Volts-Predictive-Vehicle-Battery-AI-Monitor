@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Build Arduino firmware using portable project library dependencies."""
 import json
+import os
+import re
 import pathlib
 import subprocess
 import sys
@@ -39,6 +41,37 @@ def main():
     data = json.loads(manifest_path.read_text(encoding="utf-8"))
     if data.get("schemaVersion") != 1:
         raise ValueError("Unsupported GPM library manifest version")
+
+    # The manifest is committed alongside the firmware: this is the exact
+    # dependency revision transported through feature/develop/release PRs.
+    versions = []
+    summary_lines = ["### AVR firmware dependency versions", "",
+                     "| Source | Pinned version |", "| --- | --- |"]
+    for source in data.get("gitRepositories", []):
+        url, ref = source["url"], source.get("ref", "")
+        if not re.fullmatch(r"[0-9a-fA-F]{40}", ref):
+            raise ValueError("Git library must be pinned to a full commit SHA: " + url)
+        versions.append(url + "@" + ref)
+        summary_lines.append("| `" + url + "` | `" + ref + "` |")
+        print("CI Git library:", url, "@", ref, flush=True)
+    for library in data.get("arduinoLibraryManager", []):
+        name, version = library["name"], library.get("version", "")
+        if not version:
+            raise ValueError("Unpinned Library Manager version: " + name)
+        versions.append(name + "@" + version)
+        summary_lines.append("| `" + name + "` | `" + version + "` |")
+    for local in data.get("projectLibraryPaths", []):
+        summary_lines.append("| `" + local["path"] + "` | In firmware commit |")
+    summary_file = os.environ.get("GITHUB_STEP_SUMMARY")
+    if summary_file:
+        with open(summary_file, "a", encoding="utf-8") as summary:
+            summary.write("\n".join(summary_lines) + "\n")
+    header = pathlib.Path(sys.argv[2]) / "GitVersion.generated.h"
+    if not header.is_file():
+        raise ValueError("Missing generated firmware version header: " + str(header))
+    # JSON string escaping is compatible with a C/C++ string literal.
+    with header.open("a", encoding="utf-8") as output:
+        output.write("#define GIT_LIBRARIES_VERSION " + json.dumps(";".join(versions)) + "\n")
 
     build_args = ["arduino-cli", "compile", "--fqbn", sys.argv[1]]
     with tempfile.TemporaryDirectory(prefix="gpm-avr-libraries-") as tmp:
